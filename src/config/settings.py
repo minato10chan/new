@@ -4,6 +4,7 @@
 
 import streamlit as st
 import os
+import sys
 import json
 from dotenv import load_dotenv
 from datetime import datetime
@@ -12,16 +13,27 @@ from datetime import datetime
 load_dotenv()
 
 # API Keys
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY") or st.secrets.get("pinecone_key")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("openai_api_key")
-
-# Pinecone Settings
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME") or st.secrets.get("index_name")
-PINECONE_ASSISTANT_NAME = os.getenv("PINECONE_ASSISTANT_NAME") or st.secrets.get("assistant_name")
+try:
+    if 'streamlit' in sys.modules:
+        PINECONE_API_KEY = os.getenv("PINECONE_API_KEY") or st.secrets.get("pinecone_key", None)
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("openai_api_key", None)
+        PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME") or st.secrets.get("index_name", "default-index")
+        PINECONE_ASSISTANT_NAME = os.getenv("PINECONE_ASSISTANT_NAME") or st.secrets.get("assistant_name", "default-assistant")
+    else:
+        PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "default-index")
+        PINECONE_ASSISTANT_NAME = os.getenv("PINECONE_ASSISTANT_NAME", "default-assistant")
+except Exception:
+    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "default-index")
+    PINECONE_ASSISTANT_NAME = os.getenv("PINECONE_ASSISTANT_NAME", "default-assistant")
 
 # Text Processing Settings
 CHUNK_SIZE = 500  # テキストを分割する際の1チャンクあたりの文字数
 BATCH_SIZE = 100  # Pineconeへのアップロード時のバッチサイズ
+PROPERTY_MAX_TOKENS = 8000  # 物件情報チャンクの最大トークン数（Pineconeの40KB制限に基づく）
 
 # OpenAI Settings
 EMBEDDING_MODEL = "text-embedding-3-large"  # 使用する埋め込みモデル
@@ -205,4 +217,4 @@ METADATA_CATEGORIES = {
         "川崎市",
         "相模原市",
     ]
-} 
+}            

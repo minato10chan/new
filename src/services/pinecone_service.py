@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pinecone import Pinecone
 from openai import OpenAI
 import time
@@ -108,8 +108,10 @@ class PineconeService:
                     retry_delay *= 2
                 else:
                     raise Exception(f"埋め込みベクトルの生成に失敗しました（最大試行回数到達）: {str(e)}")
+        
+        return []
 
-    def upload_chunks(self, chunks: List[Dict[str, Any]], namespace: str = None, batch_size: int = BATCH_SIZE) -> None:
+    def upload_chunks(self, chunks: List[Dict[str, Any]], namespace: Optional[str] = None, batch_size: int = BATCH_SIZE) -> None:
         """チャンクをPineconeにアップロード"""
         if not chunks:
             print("アップロードするチャンクがありません")
@@ -197,7 +199,7 @@ class PineconeService:
         except Exception as e:
             raise Exception(f"チャンクのアップロードに失敗しました: {str(e)}")
 
-    def query(self, query_text: str, namespace: str = None, top_k: int = DEFAULT_TOP_K, similarity_threshold: float = SIMILARITY_THRESHOLD) -> Dict[str, Any]:
+    def query(self, query_text: str, namespace: Optional[str] = None, top_k: int = DEFAULT_TOP_K, similarity_threshold: float = SIMILARITY_THRESHOLD) -> Dict[str, Any]:
         """クエリに基づいて類似チャンクを検索"""
         max_retries = 3
         retry_delay = 1
@@ -253,8 +255,10 @@ class PineconeService:
                     retry_delay *= 2
                 else:
                     raise Exception(f"検索クエリの実行に失敗しました（最大試行回数到達）: {str(e)}")
+        
+        return {"matches": [], "namespace": namespace}
 
-    def get_index_stats(self, namespace: str = None) -> Dict[str, Any]:
+    def get_index_stats(self, namespace: Optional[str] = None) -> Dict[str, Any]:
         """インデックスの統計情報を取得"""
         max_retries = 3
         retry_delay = 1
@@ -278,8 +282,10 @@ class PineconeService:
                     retry_delay *= 2
                 else:
                     raise Exception(f"統計情報の取得に失敗しました（最大試行回数到達）: {str(e)}")
+        
+        return {"total_vector_count": 0, "dimension": 0}
 
-    def clear_index(self, namespace: str = None) -> None:
+    def clear_index(self, namespace: Optional[str] = None) -> None:
         """インデックスをクリア"""
         try:
             self.index.delete(delete_all=True, namespace=namespace)
@@ -343,7 +349,7 @@ class PineconeService:
         except Exception as e:
             raise Exception(f"インデックスデータの取得に失敗しました: {str(e)}")
 
-    def get_stats(self, namespace: str = None) -> dict:
+    def get_stats(self, namespace: Optional[str] = None) -> dict:
         """指定されたnamespaceの統計情報を取得"""
         try:
             stats = self.index.describe_index_stats()
@@ -353,7 +359,7 @@ class PineconeService:
         except Exception as e:
             raise Exception(f"統計情報の取得に失敗しました: {str(e)}")
 
-    def list_vectors(self, namespace: str = None, limit: int = 1000) -> list:
+    def list_vectors(self, namespace: Optional[str] = None, limit: int = 1000) -> list:
         """指定されたnamespaceのベクトルを取得"""
         try:
             # インデックスの統計情報を取得
@@ -391,14 +397,14 @@ class PineconeService:
         except Exception as e:
             raise Exception(f"ベクトルの取得に失敗しました: {str(e)}")
 
-    def get_by_id(self, vector_id: str, namespace: str = None) -> Dict[str, Any]:
+    def get_by_id(self, vector_id: str, namespace: Optional[str] = None) -> Dict[str, Any]:
         """指定されたIDのベクトルを取得"""
         try:
             # ベクトルを取得
             result = self.index.fetch(ids=[vector_id], namespace=namespace)
             
             if not result.vectors:
-                return None
+                return {"id": vector_id, "values": [], "metadata": {}}
                 
             # 最初のベクトルを取得
             vector = result.vectors[vector_id]
@@ -412,4 +418,4 @@ class PineconeService:
             }
         except Exception as e:
             print(f"ベクトルの取得中にエラーが発生しました: {str(e)}")
-            return None 
+            return {"id": vector_id, "values": [], "metadata": {}, "error": str(e)}         
