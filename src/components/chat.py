@@ -56,6 +56,7 @@ def load_chat_history(file):
     
     return messages
 
+@st.cache_data(ttl=300)
 def get_property_list(pinecone_service: PineconeService) -> list:
     """物件情報の一覧を取得"""
     try:
@@ -322,4 +323,4 @@ def render_chat(pinecone_service: PineconeService):
                 "timestamp": datetime.now().isoformat()
             })
         
-        st.rerun() 
+        st.rerun()  

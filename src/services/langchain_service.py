@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -7,6 +7,7 @@ from langchain.schema import HumanMessage, AIMessage, SystemMessage
 import os
 import tiktoken
 from openai import OpenAI
+import streamlit as st
 from ..config.settings import (
     PINECONE_API_KEY,
     PINECONE_INDEX_NAME,
@@ -42,7 +43,8 @@ class LangChainService:
         self.encoding = tiktoken.encoding_for_model("gpt-4")
         
         # PineconeのAPIキーを環境変数に設定
-        os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
+        if PINECONE_API_KEY:
+            os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
         
         # Pineconeベクトルストアの初期化
         self.vectorstore = PineconeVectorStore.from_existing_index(
@@ -101,18 +103,19 @@ class LangChainService:
         """テキストのトークン数をカウント"""
         return len(self.encoding.encode(text))
 
-    def get_relevant_context(self, query: str, top_k: int = DEFAULT_TOP_K) -> Tuple[str, List[Dict[str, Any]], int]:
+    @st.cache_data(ttl=600)
+    def get_relevant_context(_self, query: str, top_k: int = DEFAULT_TOP_K) -> Tuple[str, List[Dict[str, Any]], int]:
         """クエリに関連する文脈を取得"""
         try:
             # クエリのトークン数をカウント
-            query_tokens = self.count_tokens(query)
+            query_tokens = _self.count_tokens(query)
             print(f"クエリのトークン数: {query_tokens}")
             
             # クエリのベクトル化
-            query_vector = self.embeddings.embed_query(query)
+            query_vector = _self.embeddings.embed_query(query)
             
             # より多くの結果を取得して、後でフィルタリング
-            docs = self.vectorstore.similarity_search_with_score(query, k=top_k * 2)
+            docs = _self.vectorstore.similarity_search_with_score(query, k=top_k * 2)
             
             # メタデータを簡略化して保持
             simplified_docs = []
@@ -153,7 +156,7 @@ class LangChainService:
             context_text = "\n".join([doc["content"] for doc in filtered_docs])
             
             # コンテキストのトークン数をカウント
-            context_tokens = self.count_tokens(context_text)
+            context_tokens = _self.count_tokens(context_text)
             print(f"コンテキストのトークン数: {context_tokens}")
             
             search_details = []
@@ -190,7 +193,7 @@ class LangChainService:
                     "エラータイプ": "Unknown Error"
                 }], 0
 
-    def get_response(self, query: str, system_prompt: str = None, response_template: str = None, property_info: str = None, chat_history: list = None) -> Tuple[str, Dict[str, Any]]:
+    def get_response(self, query: str, system_prompt: Optional[str] = None, response_template: Optional[str] = None, property_info: Optional[str] = None, chat_history: Optional[list] = None) -> Tuple[str, Dict[str, Any]]:
         """クエリに対する応答を生成"""
         try:
             # プロンプトの設定
@@ -233,7 +236,7 @@ class LangChainService:
             self.optimize_chat_history()
             
             # プロンプトのトークン数をカウント
-            prompt_tokens = self.count_tokens(system_prompt)
+            prompt_tokens = self.count_tokens(system_prompt or "")
             print(f"システムプロンプトのトークン数: {prompt_tokens}")
             
             # チャット履歴のトークン数をカウント
@@ -380,4 +383,4 @@ class LangChainService:
 
     def clear_memory(self):
         """会話メモリをクリア"""
-        self.message_history.clear() 
+        self.message_history.clear()    

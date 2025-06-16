@@ -35,18 +35,25 @@ if "system_prompt" not in st.session_state:
 if "response_template" not in st.session_state:
     st.session_state.response_template = DEFAULT_RESPONSE_TEMPLATE
 
-# Pineconeサービスの初期化
-try:
-    pinecone_service = PineconeService()
-    # インデックスの状態を確認
-    stats = pinecone_service.get_index_stats()
-    if stats['total_vector_count'] == 0:
-        st.info("データベースは空です。物件情報を登録してください。")
-    else:
-        st.write(f"データベースの状態: {stats['total_vector_count']}件のドキュメント")
-except Exception as e:
-    st.error(f"Pineconeサービスの初期化に失敗しました: {str(e)}")
-    st.stop()
+# Pineconeサービスの初期化 - session stateでキャッシュ
+if "pinecone_service" not in st.session_state:
+    try:
+        st.session_state.pinecone_service = PineconeService()
+    except Exception as e:
+        st.error(f"Pineconeサービスの初期化に失敗しました: {str(e)}")
+        st.stop()
+
+pinecone_service = st.session_state.pinecone_service
+
+# インデックスの状態を確認（キャッシュされた結果を使用）
+if "index_stats" not in st.session_state:
+    st.session_state.index_stats = pinecone_service.get_index_stats()
+stats = st.session_state.index_stats
+
+if stats['total_vector_count'] == 0:
+    st.info("データベースは空です。物件情報を登録してください。")
+else:
+    st.write(f"データベースの状態: {stats['total_vector_count']}件のドキュメント")
 
 def read_file_content(file) -> str:
     """ファイルの内容を適切なエンコーディングで読み込む"""
